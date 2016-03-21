@@ -1,6 +1,6 @@
 # tera-proxy-sls
 
-Spawns a HTTP proxy server to modify the server list for NA TERA. Windows only.
+Spawns an HTTP proxy server to modify a TERA server list.
 
 ## Example:
 ```javascript
