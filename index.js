@@ -9,7 +9,6 @@ const http = require('http');
 
 const proxy = require('http-proxy');
 const xmldom = require('xmldom');
-const hosts = require('./hosts');
 
 /********
  * main *
@@ -83,8 +82,6 @@ SlsProxy.prototype.listen = function listen(hostname, callback) {
   const self = this;
   dns.resolve(self.host, function resolved(err, addresses) {
     if (err) return callback(err);
-
-    hosts.set('127.0.0.1', self.host);
 
     const ip = self.address = addresses[0];
     const proxied = self.proxy = proxy.createProxyServer({target: 'http://' + ip + ':' + self.port});
@@ -197,7 +194,6 @@ SlsProxy.prototype.listen = function listen(hostname, callback) {
 
 SlsProxy.prototype.close = function close() {
   if (this.server !== null) this.server.close();
-  hosts.remove('127.0.0.1', this.host);
 };
 
 /***********
