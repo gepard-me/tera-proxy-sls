@@ -31,60 +31,77 @@ SlsProxy.prototype.setServers = function setServers(servers) {
   this.customServers = servers;
 };
 
-SlsProxy.prototype.fetch = function fetch(callback) {
-  const req = http.request({
-    hostname: (this.address === null) ? this.host : this.address,
-    port: this.port,
-    path: '/servers/list.en',
-  });
+SlsProxy.prototype._resolve = function _resolve(callback) {
+  if (this.address === null) {
+    dns.resolve(this.host, (err, addresses) => {
+      if (!err) {
+        this.address = addresses[0];
+      }
+      callback(err);
+    });
+  } else {
+    process.nextTick(callback);
+  }
+};
 
-  req.on('response', function onResponse(res) {
-    var data = '';
-    res.on('data', (chunk) => data += chunk);
-    res.on('end', function onEnd() {
-      const servers = {};
-      const doc = new xmldom.DOMParser().parseFromString(data, 'text/xml');
-      for (let server of Array.from(doc.getElementsByTagName('server'))) {
-        const serverInfo = {};
-        for (let node of Array.from(server.childNodes)) {
-          if (node.nodeType !== 1) continue;
-          switch (node.nodeName) {
-            case 'id':
-            case 'ip':
-            case 'port':
-              serverInfo[node.nodeName] = node.textContent;
-              break;
-            case 'name':
-              for (let c of Array.from(node.childNodes)) {
-                if (c.nodeType === 4) { // CDATA_SECTION_NODE
-                  serverInfo.name = c.data;
-                  break;
+SlsProxy.prototype.fetch = function fetch(callback) {
+  const self = this;
+  self._resolve(function _fetch(err) {
+    const req = http.request({
+      hostname: (self.address === null) ? self.host : self.address,
+      port: self.port,
+      path: '/servers/list.en',
+    });
+
+    req.on('response', function onResponse(res) {
+      var data = '';
+      res.on('data', (chunk) => data += chunk);
+      res.on('end', function onEnd() {
+        const servers = {};
+        const doc = new xmldom.DOMParser().parseFromString(data, 'text/xml');
+        for (let server of Array.from(doc.getElementsByTagName('server'))) {
+          const serverInfo = {};
+          for (let node of Array.from(server.childNodes)) {
+            if (node.nodeType !== 1) continue;
+            switch (node.nodeName) {
+              case 'id':
+              case 'ip':
+              case 'port':
+                serverInfo[node.nodeName] = node.textContent;
+                break;
+              case 'name':
+                for (let c of Array.from(node.childNodes)) {
+                  if (c.nodeType === 4) { // CDATA_SECTION_NODE
+                    serverInfo.name = c.data;
+                    break;
+                  }
                 }
-              }
-              break;
+                break;
+            }
+          }
+          if (serverInfo.id) {
+            servers[serverInfo.id] = serverInfo;
           }
         }
-        if (serverInfo.id) {
-          servers[serverInfo.id] = serverInfo;
-        }
-      }
 
-      callback(null, servers);
+        callback(null, servers);
+      });
     });
+
+    req.on('error', (e) => callback(e));
+
+    req.end();
   });
-
-  req.on('error', (e) => callback(e));
-
-  req.end();
 };
 
 SlsProxy.prototype.listen = function listen(hostname, callback) {
   const self = this;
-  dns.resolve(self.host, function resolved(err, addresses) {
+  self._resolve(function _listen(err) {
     if (err) return callback(err);
 
-    const ip = self.address = addresses[0];
-    const proxied = self.proxy = proxy.createProxyServer({target: 'http://' + ip + ':' + self.port});
+    const proxied = self.proxy = proxy.createProxyServer({
+      target: 'http://' + self.address + ':' + self.port
+    });
 
     proxied.on('proxyReq', function onProxyReq(proxyReq, req, res, options) {
       proxyReq.setHeader('Host', self.host + ':' + self.port);
