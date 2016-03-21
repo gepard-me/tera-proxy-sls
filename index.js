@@ -20,6 +20,7 @@ function SlsProxy(opts) {
   this.host = (typeof opts.host !== 'undefined') ? opts.host : 'sls.service.enmasse.com';
   this.port = (typeof opts.port !== 'undefined') ? opts.port : 8080;
   this.customServers = (typeof opts.customServers !== 'undefined') ? opts.customServers : {};
+  this.listenHostname = (typeof opts.listenHostname !== 'undefined') ? opts.listenHostname : '127.0.0.1';
 
   this.address = null;
   this.proxy = null;
@@ -205,7 +206,7 @@ SlsProxy.prototype.listen = function listen(hostname, callback) {
       });
     });
 
-    server.listen(self.port, '127.0.0.1', callback);
+    server.listen(self.port, self.listenHostname, callback);
   });
 };
 

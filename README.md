@@ -21,6 +21,7 @@ Constructor with the following allowed options:
  * `host`: The hostname for the target server list. Default: `sls.service.enmasse.com`
  * `port`: The port for the target server list and for the proxy server. Default: `8080`
  * `customServers`: An object of custom servers. See `setServers` below for details. Default: `{}`
+ * `listenHostname`: The hostname for the proxy server to accept connections on. See `net.server.listen`. Default: `127.0.0.1`
 
 ### `proxy.setServers(servers)`
 Sets the custom server object where `servers` is a mapping of server IDs with custom options.
