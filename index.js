@@ -5,6 +5,10 @@ const http = require('http');
 const proxy = require('http-proxy');
 const xmldom = require('xmldom');
 
+function asArray(nodes) {
+  return Array.from(nodes || []);
+}
+
 class SlsProxy {
   constructor(opts = {}) {
     if (!(this instanceof SlsProxy)) return new SlsProxy(opts);
@@ -27,9 +31,7 @@ class SlsProxy {
   _resolve(callback) {
     if (this.address === null) {
       dns.resolve(this.host, (err, addresses) => {
-        if (!err) {
-          this.address = addresses[0];
-        }
+        if (!err) this.address = addresses[0];
         callback(err);
       });
     } else {
@@ -47,13 +49,29 @@ class SlsProxy {
 
       req.on('response', (res) => {
         let data = '';
+
+        res.on('error', (e) => {
+          console.warn();
+          console.warn('[sls] error fetching server list');
+          console.warn(e);
+          console.warn();
+          // TODO what kind of errors will be here? how should we handle them?
+        });
+
         res.on('data', chunk => data += chunk);
+
         res.on('end', () => {
-          const servers = {};
           const doc = new xmldom.DOMParser().parseFromString(data, 'text/xml');
-          for (let server of Array.from(doc.getElementsByTagName('server'))) {
+          if (!doc) {
+            callback(new Error('failed to parse document'));
+            return;
+          }
+
+          const servers = {};
+          for (let server of asArray(doc.getElementsByTagName('server'))) {
             const serverInfo = {};
-            for (let node of Array.from(server.childNodes)) {
+
+            for (let node of asArray(server.childNodes)) {
               if (node.nodeType !== 1) continue;
               switch (node.nodeName) {
                 case 'id':
@@ -64,7 +82,7 @@ class SlsProxy {
                 }
 
                 case 'name': {
-                  for (let c of Array.from(node.childNodes)) {
+                  for (let c of asArray(node.childNodes)) {
                     if (c.nodeType === 4) { // CDATA_SECTION_NODE
                       serverInfo.name = c.data;
                       break;
@@ -74,6 +92,7 @@ class SlsProxy {
                 }
               }
             }
+
             if (serverInfo.id) {
               servers[serverInfo.id] = serverInfo;
             }
@@ -128,9 +147,9 @@ class SlsProxy {
             if (chunk) data += chunk;
 
             const doc = new xmldom.DOMParser().parseFromString(data, 'text/xml');
-            const servers = Array.from(doc.getElementsByTagName('server'));
+            const servers = asArray(doc.getElementsByTagName('server'));
             for (let server of servers) {
-              for (let node of Array.from(server.childNodes)) {
+              for (let node of asArray(server.childNodes)) {
                 if (node.nodeType === 1 && node.nodeName === 'id') {
                   const settings = self.customServers[node.textContent];
                   if (settings) {
@@ -139,7 +158,7 @@ class SlsProxy {
                       server = server.cloneNode(true);
                       parent.appendChild(server);
                     }
-                    for (let n of Array.from(server.childNodes)) {
+                    for (let n of asArray(server.childNodes)) {
                       if (n.nodeType !== 1) continue; // ensure type: element
                       switch (n.nodeName) {
                         case 'ip': {
@@ -156,13 +175,13 @@ class SlsProxy {
 
                         case 'name': {
                           if (typeof settings.name !== 'undefined') {
-                            for (let c of Array.from(n.childNodes)) {
+                            for (let c of asArray(n.childNodes)) {
                               if (c.nodeType === 4) { // CDATA_SECTION_NODE
                                 c.data = settings.name;
                                 break;
                               }
                             }
-                            for (let a of Array.from(n.attributes)) {
+                            for (let a of asArray(n.attributes)) {
                               if (a.name === 'raw_name') {
                                 a.value = settings.name;
                                 break;
@@ -175,7 +194,7 @@ class SlsProxy {
                         case 'crowdness': {
                           if (!settings.overwrite) {
                             //n.textContent = 'None';
-                            for (let a of Array.from(n.attributes)) {
+                            for (let a of asArray(n.attributes)) {
                               if (a.name === 'sort') {
                                 // 0 crowdness makes this server highest priority
                                 // if there are multiple servers with this ID
@@ -200,9 +219,12 @@ class SlsProxy {
         }
 
         proxied.web(req, res, (err) => {
-          console.warn('* error proxying request to ' + req.url);
+          console.warn();
+          console.warn('[sls] error proxying request to ' + req.url);
           console.warn(err);
           console.warn();
+
+          res.writeHead(500, err.toString(), { 'Content-Type': 'text/plain' });
           res.end();
         });
       });
