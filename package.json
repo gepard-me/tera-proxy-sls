@@ -13,8 +13,8 @@
     "node": ">=4.0.0"
   },
   "dependencies": {
-    "http-proxy": "^1.12.0",
-    "xmldom": "^0.1.19"
+    "http-proxy": "^1.15.1",
+    "xmldom": "^0.1.22"
   },
   "bugs": {
     "url": "https://github.com/meishuu/tera-proxy-sls/issues"
