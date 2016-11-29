@@ -147,6 +147,13 @@ class SlsProxy {
             if (chunk) data += chunk;
 
             const doc = new xmldom.DOMParser().parseFromString(data, 'text/xml');
+            if (!doc) {
+              // assume xmldom already logged an error
+              write.call(res, data, 'utf8');
+              end.call(res);
+              return;
+            }
+
             const servers = asArray(doc.getElementsByTagName('server'));
             for (let server of servers) {
               for (let node of asArray(server.childNodes)) {
