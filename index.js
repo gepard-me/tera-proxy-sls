@@ -1,5 +1,6 @@
 const fs = require('fs');
 const dns = require('dns');
+const url = require('url');
 const http = require('http');
 
 const proxy = require('http-proxy');
@@ -13,8 +14,13 @@ class SlsProxy {
   constructor(opts = {}) {
     if (!(this instanceof SlsProxy)) return new SlsProxy(opts);
 
-    this.host = opts.host || 'sls.service.enmasse.com';
-    this.port = (opts.port != null) ? opts.port : 8080;
+    const slsUrl = opts.url || 'http://sls.service.enmasse.com:8080/servers/list.en';
+    this.url = url.parse(slsUrl);
+
+    this.host = opts.hostname || this.url.hostname;
+    this.port = opts.port || this.url.port || 80;
+    this.path = opts.pathname || this.url.pathname || '/';
+
     this.customServers = opts.customServers || {};
     this.listenHostname = opts.listenHostname || '127.0.0.1';
 
@@ -44,7 +50,10 @@ class SlsProxy {
       const req = http.request({
         hostname: this.address || this.host,
         port: this.port,
-        path: '/servers/list.en',
+        path: this.path,
+        headers: {
+          'Host': `${this.host}:${this.port}`,
+        },
       });
 
       req.on('response', (res) => {
@@ -244,7 +253,8 @@ class SlsProxy {
   }
 
   close() {
-    if (this.server !== null) this.server.close();
+    if (this.proxy) this.proxy.close();
+    if (this.server) this.server.close();
   }
 }
 
