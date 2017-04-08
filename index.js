@@ -77,10 +77,10 @@ class SlsProxy {
           }
 
           const servers = {};
-          for (let server of asArray(doc.getElementsByTagName('server'))) {
+          for (const server of asArray(doc.getElementsByTagName('server'))) {
             const serverInfo = {};
 
-            for (let node of asArray(server.childNodes)) {
+            for (const node of asArray(server.childNodes)) {
               if (node.nodeType !== 1) continue;
               switch (node.nodeName) {
                 case 'id':
@@ -91,7 +91,7 @@ class SlsProxy {
                 }
 
                 case 'name': {
-                  for (let c of asArray(node.childNodes)) {
+                  for (const c of asArray(node.childNodes)) {
                     if (c.nodeType === 4) { // CDATA_SECTION_NODE
                       serverInfo.name = c.data;
                       break;
@@ -139,20 +139,18 @@ class SlsProxy {
           const write = res.write;
           const end = res.end;
 
-          const self = this;
           let data = '';
 
-          res.writeHead = function _writeHead(code, headers) {
+          res.writeHead = (...args) => {
             res.removeHeader('Content-Length');
-            if (headers) delete headers['content-length'];
-            writeHead.apply(res, arguments);
+            writeHead.apply(res, args);
           };
 
-          res.write = function _write(chunk) {
+          res.write = (chunk) => {
             data += chunk;
           };
 
-          res.end = function _end(chunk) {
+          res.end = (chunk) => {
             if (chunk) data += chunk;
 
             const doc = new xmldom.DOMParser().parseFromString(data, 'text/xml');
@@ -165,20 +163,20 @@ class SlsProxy {
 
             const servers = asArray(doc.getElementsByTagName('server'));
             for (let server of servers) {
-              for (let node of asArray(server.childNodes)) {
+              for (const node of asArray(server.childNodes)) {
                 if (node.nodeType === 1 && node.nodeName === 'id') {
-                  const settings = self.customServers[node.textContent];
+                  const settings = this.customServers[node.textContent];
                   if (settings) {
                     if (!settings.overwrite) {
                       const parent = server.parentNode;
                       server = server.cloneNode(true);
                       parent.appendChild(server);
                     }
-                    for (let n of asArray(server.childNodes)) {
+                    for (const n of asArray(server.childNodes)) {
                       if (n.nodeType !== 1) continue; // ensure type: element
                       switch (n.nodeName) {
                         case 'ip': {
-                          n.textContent = (typeof settings.ip !== 'undefined') ? settings.ip : '127.0.0.1';
+                          n.textContent = settings.ip || '127.0.0.1';
                           break;
                         }
 
@@ -191,13 +189,13 @@ class SlsProxy {
 
                         case 'name': {
                           if (typeof settings.name !== 'undefined') {
-                            for (let c of asArray(n.childNodes)) {
+                            for (const c of asArray(n.childNodes)) {
                               if (c.nodeType === 4) { // CDATA_SECTION_NODE
                                 c.data = settings.name;
                                 break;
                               }
                             }
-                            for (let a of asArray(n.attributes)) {
+                            for (const a of asArray(n.attributes)) {
                               if (a.name === 'raw_name') {
                                 a.value = settings.name;
                                 break;
@@ -210,7 +208,7 @@ class SlsProxy {
                         case 'crowdness': {
                           if (!settings.overwrite) {
                             //n.textContent = 'None';
-                            for (let a of asArray(n.attributes)) {
+                            for (const a of asArray(n.attributes)) {
                               if (a.name === 'sort') {
                                 // 0 crowdness makes this server highest priority
                                 // if there are multiple servers with this ID
