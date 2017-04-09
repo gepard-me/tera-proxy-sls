@@ -22,7 +22,6 @@ class SlsProxy {
     this.path = opts.pathname || this.url.pathname || '/';
 
     this.customServers = opts.customServers || {};
-    this.listenHostname = opts.listenHostname || '127.0.0.1';
 
     this.address = null;
     this.proxy = null;
@@ -246,7 +245,7 @@ class SlsProxy {
       this.proxy = proxied;
       this.server = server;
 
-      server.listen(this.port, this.listenHostname, callback);
+      server.listen(this.port, hostname, callback);
     });
   }
 
