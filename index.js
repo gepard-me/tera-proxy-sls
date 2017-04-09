@@ -133,7 +133,7 @@ class SlsProxy {
       const server = http.createServer((req, res) => {
         if (req.url[0] != '/') return res.end();
 
-        if (req.url === '/servers/list.en') {
+        if (req.url === this.path) {
           const writeHead = res.writeHead;
           const write = res.write;
           const end = res.end;
