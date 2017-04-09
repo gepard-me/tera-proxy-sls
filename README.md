@@ -3,25 +3,38 @@
 Spawns an HTTP proxy server to modify a TERA server list.
 
 ## Example:
-```javascript
-var SlsProxy = require('sls');
-var proxy = new SlsProxy({
+```js
+const SlsProxy = require('sls');
+const proxy = new SlsProxy({
   customServers: {
-    4009: { name: 'Celestial Chills', port: 9999, overwrite: false }
-  }
+    4009: { name: 'Celestial Chills', port: 9999, overwrite: false },
+  },
 });
 proxy.listen('127.0.0.1', () => console.log('listening'));
 process.on('SIGHUP', () => proxy.close());
 ```
 
+## Server URLs:
+Each region has its own server list. They are as follows:
+ * [NA](http://tera.enmasse.com/): <http://sls.service.enmasse.com:8080/servers/list.en>
+ * [EU](http://tera.gameforge.com/): <http://web-sls.tera.gameforge.com:4566/servers/list.uk>
+ * [RU](http://www.tera-online.ru/): <http://launcher.tera-online.ru/launcher/sls/>
+ * [JP](http://tera.pmang.jp/): (unknown)
+ * [KR](http://tera.nexon.com/): (unknown)
+ * [TW](http://tera.mangot5.com/): (unknown)
+
 ## API Reference:
 
 ### `new SlsProxy(opts)`
 Constructor with the following allowed options:
- * `host`: The hostname for the target server list. Default: `sls.service.enmasse.com`
- * `port`: The port for the target server list and for the proxy server. Default: `8080`
+ * `url`: The URL of the target server list. Default: `http://sls.service.enmasse.com:8080/servers/list.en`
+ * `hostname`: Overrides the hostname for the parsed `url` if given.
+ * `port`: Overrides the port for the parsed `url` if given.
+ * `pathname`: Overrides the pathname for the parsed `url` if given.
  * `customServers`: An object of custom servers. See `setServers` below for details. Default: `{}`
- * `listenHostname`: The hostname for the proxy server to accept connections on. See `net.server.listen`. Default: `127.0.0.1`
+
+The HTTP proxy server will run on the same port as specified here. Note that the target server list and
+the proxy server list must use the same port.
 
 ### `proxy.setServers(servers)`
 Sets the custom server object where `servers` is a mapping of server IDs with custom options.
@@ -71,12 +84,5 @@ Starts an HTTP server listening on `hostname`, using `callback` as the handler f
 (see [net.Server#listening](https://nodejs.org/api/net.html#net_event_listening)). If there was an error,
 it will be passed as the first parameter to `callback`.
 
-This also modifies `/etc/hosts` to point `proxy.host` to `127.0.0.1`, which may fail without administrative
-permissions.
-
 ### `proxy.close()`
-Closes the HTTP server and removes the entry from `/etc/hosts`.
-
-**This should be called on termination if `proxy.listen` is called.**
-Otherwise, the entry in the hosts file will remain, even though the SLS proxy server is no longer running.
-It is not necessary to call this if `listen` errors, but there shouldn't be any harm in doing this step anyway.
+Closes the proxy server.
