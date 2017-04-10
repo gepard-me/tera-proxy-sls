@@ -16,12 +16,12 @@ process.on('SIGHUP', () => proxy.close());
 
 ## Server URLs:
 Each region has its own server list. They are as follows:
- * [NA](http://tera.enmasse.com/): <http://sls.service.enmasse.com:8080/servers/list.en>
  * [EU](http://tera.gameforge.com/): <http://web-sls.tera.gameforge.com:4566/servers/list.uk>
+ * [JP](http://tera.pmang.jp/): <http://tera.pmang.jp/game_launcher/server_list.xml>
+ * [KR](http://tera.nexon.com/): <http://tera.nexon.com/launcher/sls/servers/list.xml>
+ * [NA](http://tera.enmasse.com/): <http://sls.service.enmasse.com:8080/servers/list.en>
  * [RU](http://www.tera-online.ru/): <http://launcher.tera-online.ru/launcher/sls/>
- * [JP](http://tera.pmang.jp/): (unknown)
- * [KR](http://tera.nexon.com/): (unknown)
- * [TW](http://tera.mangot5.com/): (unknown)
+ * [TW](http://tera.mangot5.com/): <http://tera.mangot5.com/game/tera/serverList.xml>
 
 ## API Reference:
 
