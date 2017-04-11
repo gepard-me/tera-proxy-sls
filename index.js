@@ -6,6 +6,8 @@ const http = require('http');
 const proxy = require('http-proxy');
 const xmldom = require('xmldom');
 
+const log = require('./logger');
+
 function asArray(nodes) {
   return Array.from(nodes || []);
 }
@@ -59,11 +61,8 @@ class SlsProxy {
         let data = '';
 
         res.on('error', (e) => {
-          console.warn();
-          console.warn('[sls] error fetching server list');
-          console.warn(e);
-          console.warn();
           // TODO what kind of errors will be here? how should we handle them?
+          log.error({ err: e, req, res }, '[sls] error fetching server list');
         });
 
         res.on('data', chunk => data += chunk);
@@ -232,10 +231,7 @@ class SlsProxy {
         }
 
         proxied.web(req, res, (err) => {
-          console.warn();
-          console.warn('[sls] error proxying request to ' + req.url);
-          console.warn(err);
-          console.warn();
+          log.warn({ err, req, res }, '[sls] error proxying request to ' + req.url);
 
           res.writeHead(500, err.toString(), { 'Content-Type': 'text/plain' });
           res.end();

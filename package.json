@@ -16,6 +16,9 @@
     "http-proxy": "^1.15.1",
     "xmldom": "^0.1.22"
   },
+  "optionalDependencies": {
+    "baldera-logger": "meishuu/baldera-logger"
+  },
   "bugs": {
     "url": "https://github.com/meishuu/tera-proxy-sls/issues"
   },
