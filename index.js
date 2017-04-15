@@ -224,6 +224,17 @@ class SlsProxy {
               }
             }
 
+            // appease RU sls (prevent conversion to <popup/>)
+            for (const server of asArray(doc.getElementsByTagName('server'))) {
+              for (const node of asArray(server.childNodes)) {
+                if (node.nodeType === 1 && node.nodeName === 'popup') {
+                  if (!node.hasChildNodes()) {
+                    node.appendChild(doc.createCDATASection(''));
+                  }
+                }
+              }
+            }
+
             data = new xmldom.XMLSerializer().serializeToString(doc);
             write.call(res, data, 'utf8');
             end.call(res);
