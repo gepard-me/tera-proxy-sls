@@ -12,6 +12,20 @@ function asArray(nodes) {
   return Array.from(nodes || []);
 }
 
+const errorHandler = {
+  warning(msg) {
+    log.warn({ err: msg }, 'xml parser warning');
+  },
+
+  error(msg) {
+    log.error({ err: msg }, 'xml parser error');
+  },
+
+  fatalError(msg) {
+    log.error({ err: msg }, 'xml parser fatal error');
+  },
+};
+
 class SlsProxy {
   constructor(opts = {}) {
     if (!(this instanceof SlsProxy)) return new SlsProxy(opts);
@@ -60,15 +74,18 @@ class SlsProxy {
       req.on('response', (res) => {
         let data = '';
 
-        res.on('error', (e) => {
+        res.on('error', (err) => {
           // TODO what kind of errors will be here? how should we handle them?
-          log.error({ err: e, req, res }, '[sls] error fetching server list');
+          log.error({ err, req, res }, 'error fetching server list');
         });
 
         res.on('data', chunk => data += chunk);
 
         res.on('end', () => {
-          const doc = new xmldom.DOMParser().parseFromString(data, 'text/xml');
+          log.debug({ data }, 'received response');
+
+          const parser = new xmldom.DOMParser({ errorHandler });
+          const doc = parser.parseFromString(data, 'text/xml');
           if (!doc) {
             callback(new Error('failed to parse document'));
             return;
@@ -242,7 +259,7 @@ class SlsProxy {
         }
 
         proxied.web(req, res, (err) => {
-          log.warn({ err, req, res }, '[sls] error proxying request to ' + req.url);
+          log.error({ err, req, res }, 'error proxying request');
 
           res.writeHead(500, err.toString(), { 'Content-Type': 'text/plain' });
           res.end();

@@ -3,7 +3,12 @@ function c(method) {
   return (...args) => {
     if (typeof args[0] !== 'string') {
       const obj = args.shift();
+      if (obj.req) args.push('\nurl: ' + obj.req.url);
       if (obj.err) args.push('\n' + obj.err.stack);
+    }
+
+    if (typeof args[0] === 'string') {
+      args[0] = `[sls] ${args[0]}`;
     }
 
     console[method](...args);
@@ -12,7 +17,7 @@ function c(method) {
 
 try {
   // eslint-disable-next-line global-require, import/no-extraneous-dependencies
-  module.exports = require('baldera-logger')('tera-proxy-game');
+  module.exports = require('baldera-logger')('tera-proxy-sls');
 } catch (err) {
   module.exports = {
     trace: () => {},
