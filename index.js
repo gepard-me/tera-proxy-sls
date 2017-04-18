@@ -142,8 +142,9 @@ class SlsProxy {
         target: `http://${this.address}:${this.port}`,
       });
 
-      proxied.on('proxyReq', (proxyReq, req, res, options) => {
-        proxyReq.setHeader('Host', this.host + ':' + this.port);
+      proxied.on('proxyReq', (proxyReq) => {
+        const port = (this.port !== 80) ? `:${this.port}` : '';
+        proxyReq.setHeader('Host', this.host + port);
       });
 
       const server = http.createServer((req, res) => {
