@@ -12,6 +12,87 @@ function asArray(nodes) {
   return Array.from(nodes || []);
 }
 
+function modifySlsXml(doc, customServers) {
+  const servers = asArray(doc.getElementsByTagName('server'));
+  for (let server of servers) {
+    for (const node of asArray(server.childNodes)) {
+      if (node.nodeType !== 1 || node.nodeName !== 'id') continue;
+
+      const settings = customServers[node.textContent];
+      if (!settings) continue;
+
+      if (settings.keepOriginal) {
+        const parent = server.parentNode;
+        server = server.cloneNode(true);
+        parent.appendChild(server);
+      }
+
+      for (const n of asArray(server.childNodes)) {
+        if (n.nodeType !== 1) continue; // ensure type: element
+
+        switch (n.nodeName) {
+          case 'ip': {
+            n.textContent = settings.ip || '127.0.0.1';
+            break;
+          }
+
+          case 'port': {
+            if (settings.port) {
+              n.textContent = settings.port;
+            }
+            break;
+          }
+
+          case 'name': {
+            if (settings.name) {
+              for (const c of asArray(n.childNodes)) {
+                if (c.nodeType === 4) { // CDATA_SECTION_NODE
+                  c.data = settings.name;
+                  break;
+                }
+              }
+              for (const a of asArray(n.attributes)) {
+                if (a.name === 'raw_name') {
+                  a.value = settings.name;
+                  break;
+                }
+              }
+            }
+            break;
+          }
+
+          case 'crowdness': {
+            if (settings.keepOriginal) {
+              for (const a of asArray(n.attributes)) {
+                if (a.name === 'sort') {
+                  // 0 crowdness makes this server highest priority
+                  // if there are multiple servers with this ID
+                  a.value = '0';
+                  break;
+                }
+              }
+            }
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // appease RU sls (prevent conversion to <popup/>)
+  for (const server of asArray(doc.getElementsByTagName('server'))) {
+    for (const node of asArray(server.childNodes)) {
+      if (node.nodeType === 1 && node.nodeName === 'popup') {
+        if (!node.hasChildNodes()) {
+          node.appendChild(doc.createCDATASection(''));
+        }
+      }
+    }
+  }
+
+  return new xmldom.XMLSerializer().serializeToString(doc);
+}
+
 const errorHandler = {
   warning(msg) {
     log.warn({ err: msg }, 'xml parser warning');
@@ -28,14 +109,13 @@ const errorHandler = {
 
 class SlsProxy {
   constructor(opts = {}) {
-    if (!(this instanceof SlsProxy)) return new SlsProxy(opts);
-
     const slsUrl = opts.url || 'http://sls.service.enmasse.com:8080/servers/list.en';
-    this.url = url.parse(slsUrl);
+    const parsed = Object.assign(url.parse(slsUrl), opts);
 
-    this.host = opts.hostname || this.url.hostname;
-    this.port = opts.port || this.url.port || 80;
-    this.path = opts.pathname || this.url.pathname || '/';
+    this.host = parsed.hostname;
+    this.port = parsed.port || 80;
+    this.path = parsed.pathname || '/';
+    this.paths = new Set(Array.isArray(this.path) ? this.path : [this.path]);
 
     this.customServers = opts.customServers || {};
 
@@ -60,28 +140,36 @@ class SlsProxy {
     }
   }
 
-  fetch(callback) {
+  fetch(index, callback) {
+    if (typeof index === 'function') {
+      callback = index;
+      index = 0;
+    }
+
+    const urlPath = [...this.paths][index || 0];
+
     this._resolve((err) => {
       const req = http.request({
         hostname: this.address || this.host,
         port: this.port,
-        path: this.path,
+        path: urlPath,
         headers: {
           'Host': `${this.host}:${this.port}`,
         },
       });
 
       req.on('response', (res) => {
-        let data = '';
+        const buffer = [];
 
         res.on('error', (err) => {
           // TODO what kind of errors will be here? how should we handle them?
           log.error({ err, req, res }, 'error fetching server list');
         });
 
-        res.on('data', chunk => data += chunk);
+        res.on('data', chunk => buffer.push(chunk));
 
         res.on('end', () => {
+          const data = Buffer.concat(buffer).toString('utf8');
           log.debug({ data }, 'received response');
 
           const parser = new xmldom.DOMParser({ errorHandler });
@@ -150,12 +238,12 @@ class SlsProxy {
       const server = http.createServer((req, res) => {
         if (req.url[0] != '/') return res.end();
 
-        if (req.url === this.path) {
+        if (this.paths.has(req.url)) {
           const writeHead = res.writeHead;
           const write = res.write;
           const end = res.end;
 
-          let data = '';
+          const buffer = [];
 
           res.writeHead = (...args) => {
             res.removeHeader('Content-Length');
@@ -163,98 +251,19 @@ class SlsProxy {
           };
 
           res.write = (chunk) => {
-            data += chunk;
+            buffer.push(chunk);
           };
 
           res.end = (chunk) => {
-            if (chunk) data += chunk;
+            if (chunk) buffer.push(chunk);
+            const data = Buffer.concat(buffer).toString('utf8');
 
             const doc = new xmldom.DOMParser().parseFromString(data, 'text/xml');
-            if (!doc) {
-              // assume xmldom already logged an error
-              write.call(res, data, 'utf8');
-              end.call(res);
-              return;
-            }
+            const out = doc
+              ? modifySlsXml(doc, this.customServers)
+              : data; // assume xmldom already logged an error
 
-            const servers = asArray(doc.getElementsByTagName('server'));
-            for (let server of servers) {
-              for (const node of asArray(server.childNodes)) {
-                if (node.nodeType === 1 && node.nodeName === 'id') {
-                  const settings = this.customServers[node.textContent];
-                  if (settings) {
-                    if (!settings.overwrite) {
-                      const parent = server.parentNode;
-                      server = server.cloneNode(true);
-                      parent.appendChild(server);
-                    }
-                    for (const n of asArray(server.childNodes)) {
-                      if (n.nodeType !== 1) continue; // ensure type: element
-                      switch (n.nodeName) {
-                        case 'ip': {
-                          n.textContent = settings.ip || '127.0.0.1';
-                          break;
-                        }
-
-                        case 'port': {
-                          if (typeof settings.port !== 'undefined') {
-                            n.textContent = settings.port;
-                          }
-                          break;
-                        }
-
-                        case 'name': {
-                          if (typeof settings.name !== 'undefined') {
-                            for (const c of asArray(n.childNodes)) {
-                              if (c.nodeType === 4) { // CDATA_SECTION_NODE
-                                c.data = settings.name;
-                                break;
-                              }
-                            }
-                            for (const a of asArray(n.attributes)) {
-                              if (a.name === 'raw_name') {
-                                a.value = settings.name;
-                                break;
-                              }
-                            }
-                          }
-                          break;
-                        }
-
-                        case 'crowdness': {
-                          if (!settings.overwrite) {
-                            //n.textContent = 'None';
-                            for (const a of asArray(n.attributes)) {
-                              if (a.name === 'sort') {
-                                // 0 crowdness makes this server highest priority
-                                // if there are multiple servers with this ID
-                                a.value = '0';
-                                break;
-                              }
-                            }
-                          }
-                          break;
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-
-            // appease RU sls (prevent conversion to <popup/>)
-            for (const server of asArray(doc.getElementsByTagName('server'))) {
-              for (const node of asArray(server.childNodes)) {
-                if (node.nodeType === 1 && node.nodeName === 'popup') {
-                  if (!node.hasChildNodes()) {
-                    node.appendChild(doc.createCDATASection(''));
-                  }
-                }
-              }
-            }
-
-            data = new xmldom.XMLSerializer().serializeToString(doc);
-            write.call(res, data, 'utf8');
+            write.call(res, out, 'utf8');
             end.call(res);
           };
         }
