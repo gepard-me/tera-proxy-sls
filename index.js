@@ -2,6 +2,7 @@ const fs = require('fs');
 const dns = require('dns');
 const url = require('url');
 const http = require('http');
+const zlib = require('zlib');
 
 const proxy = require('http-proxy');
 const xmldom = require('xmldom');
@@ -236,7 +237,7 @@ class SlsProxy {
       });
 
       const server = http.createServer((req, res) => {
-        if (req.url[0] != '/') return res.end();
+        if (req.url[0] !== '/') return res.end();
 
         if (this.paths.has(req.url)) {
           const writeHead = res.writeHead;
@@ -256,12 +257,19 @@ class SlsProxy {
 
           res.end = (chunk) => {
             if (chunk) buffer.push(chunk);
-            const data = Buffer.concat(buffer).toString('utf8');
+
+            // TODO doing this all in-memory is pretty not-great
+            const gzipped = (res.getHeader('content-encoding') === 'gzip');
+            const response = Buffer.concat(buffer);
+            const decoded = (gzipped ? zlib.gunzipSync(response) : response);
+            const data = decoded.toString('utf8');
 
             const doc = new xmldom.DOMParser().parseFromString(data, 'text/xml');
-            const out = doc
+            const transformed = doc
               ? modifySlsXml(doc, this.customServers)
               : data; // assume xmldom already logged an error
+
+            const out = (gzipped ? zlib.gzipSync(transformed) : transformed);
 
             write.call(res, out, 'utf8');
             end.call(res);
