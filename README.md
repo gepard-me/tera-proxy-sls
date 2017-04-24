@@ -26,15 +26,14 @@ Each region has its own server list. They are as follows:
 ## API Reference:
 
 ### `new SlsProxy(opts)`
-Constructor with the following allowed options:
+Constructor with the following allowed options, all optional:
  * `url`: The URL of the target server list. Default: `http://sls.service.enmasse.com:8080/servers/list.en`
  * `hostname`: Overrides the hostname for the parsed `url` if given.
  * `port`: Overrides the port for the parsed `url` if given.
  * `pathname`: Overrides the pathname for the parsed `url` if given.
- * `customServers`: An object of custom servers. See `setServers` below for details. Default: `{}`
+ * `customServers`: An object of custom servers. See `setServers` below for details.
 
-The HTTP proxy server will run on the same port as specified here. Note that the target server list and
-the proxy server list must use the same port.
+The HTTP proxy server will run on the same port as specified here. Note that the target server list and the proxy server list must use the same port.
 
 ### `proxy.setServers(servers)`
 Sets the custom server object where `servers` is a mapping of server IDs with custom options.
@@ -43,10 +42,9 @@ For each server, valid options are:
  * `ip`: The IP to point to for the custom server. Default: `127.0.0.1`
  * `port`: The port for the custom server. Default: `null` (no change)
  * `name`: The name to use for this server in the list. Default: `null` (no change)
- * `overwrite`: If `true`, this custom server will completely replace the original one in the list. Default: `false`
+ * `keepOriginal`: If `true`, this custom server will show up as an extra server instead of replacing the original one in the list. Default: `false`
 
-If `overwrite` is `false` for a server ID, then the `crowdness` for the new server will have a sort value of `0`
-to give it priority over the old server when TERA selects which one to automatically log into.
+If `keepOriginal` is `true` for a server, then the `crowdness` for the new server will have a sort value of `0` to give it priority over the old server when TERA selects which one to automatically log into.
 
 ### `proxy.fetch(callback)`
 Fetches a map of server IDs and simplified properties from the official list.
@@ -80,9 +78,7 @@ Example result:
 ```
 
 ### `proxy.listen(hostname, callback)`
-Starts an HTTP server listening on `hostname`, using `callback` as the handler for the `listening` event
-(see [net.Server#listening](https://nodejs.org/api/net.html#net_event_listening)). If there was an error,
-it will be passed as the first parameter to `callback`.
+Starts an HTTP server listening on `hostname`, using `callback` as the handler for the `listening` event (see [net.Server#listening](https://nodejs.org/api/net.html#net_event_listening)). If there was an error, it will be passed as the first parameter to `callback`.
 
 ### `proxy.close()`
 Closes the proxy server.
