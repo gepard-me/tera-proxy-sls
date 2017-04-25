@@ -30,7 +30,8 @@ Constructor with the following allowed options, all optional:
  * `url`: The URL of the target server list. Default: `http://sls.service.enmasse.com:8080/servers/list.en`
  * `hostname`: Overrides the hostname for the parsed `url` if given.
  * `port`: Overrides the port for the parsed `url` if given.
- * `pathname`: Overrides the pathname for the parsed `url` if given.
+ * `pathname`: Overrides the pathname for the parsed `url` if given. Can be a string for a single path, or an array for multiple paths.
+ * `address`: If not provided, a DNS lookup will be performed on the `hostname`. All requests will be proxied to the resolved address, or this one if given.
  * `customServers`: An object of custom servers. See `setServers` below for details.
 
 The HTTP proxy server will run on the same port as specified here. Note that the target server list and the proxy server list must use the same port.
@@ -46,7 +47,7 @@ For each server, valid options are:
 
 If `keepOriginal` is `true` for a server, then the `crowdness` for the new server will have a sort value of `0` to give it priority over the old server when TERA selects which one to automatically log into.
 
-### `proxy.fetch(callback)`
+### `proxy.fetch([index], callback)`
 Fetches a map of server IDs and simplified properties from the official list.
 
 `callback` receives two parameters:
