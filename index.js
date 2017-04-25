@@ -120,7 +120,7 @@ class SlsProxy {
 
     this.customServers = opts.customServers || {};
 
-    this.address = null;
+    this.address = opts.address || null;
     this.proxy = null;
     this.server = null;
     this.fetches = new Map();
@@ -131,8 +131,8 @@ class SlsProxy {
     this.customServers = servers;
   }
 
-  _resolve(callback) {
-    if (this.address === null) {
+  resolve(callback) {
+    if (!this.address) {
       dns.resolve(this.host, (err, addresses) => {
         if (!err) this.address = addresses[0];
         callback(err);
@@ -167,7 +167,7 @@ class SlsProxy {
       }
     };
 
-    this._resolve((err) => {
+    this.resolve((err) => {
       if (err) {
         runCallbacks(err);
         return;
@@ -249,7 +249,7 @@ class SlsProxy {
   }
 
   listen(hostname, callback) {
-    this._resolve((err) => {
+    this.resolve((err) => {
       if (err) return callback(err);
 
       const proxied = proxy.createProxyServer({
