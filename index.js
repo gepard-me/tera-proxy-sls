@@ -123,6 +123,7 @@ class SlsProxy {
     this.address = null;
     this.proxy = null;
     this.server = null;
+    this.fetches = new Map();
   }
 
   setServers(servers) {
@@ -149,7 +150,29 @@ class SlsProxy {
 
     const urlPath = [...this.paths][index || 0];
 
+    if (this.fetches.has(urlPath)) {
+      this.fetches.get(urlPath).callbacks.push(callback);
+      return;
+    }
+
+    const fetchData = { callbacks: [callback] };
+    this.fetches.set(urlPath, fetchData);
+
+    let done = false;
+    const runCallbacks = (...args) => {
+      if (!done) {
+        done = true;
+        this.fetches.delete(urlPath);
+        for (const cb of fetchData.callbacks) cb(...args);
+      }
+    };
+
     this._resolve((err) => {
+      if (err) {
+        runCallbacks(err);
+        return;
+      }
+
       const req = http.request({
         hostname: this.address || this.host,
         port: this.port,
@@ -158,6 +181,8 @@ class SlsProxy {
           'Host': `${this.host}:${this.port}`,
         },
       });
+
+      fetchData.req = req;
 
       req.on('response', (res) => {
         const buffer = [];
@@ -211,12 +236,12 @@ class SlsProxy {
             }
           }
 
-          callback(null, servers);
+          runCallbacks(null, servers);
         });
       });
 
       req.on('error', (e) => {
-        callback(e);
+        runCallbacks(e);
       });
 
       req.end();
@@ -294,6 +319,22 @@ class SlsProxy {
   close() {
     if (this.proxy) this.proxy.close();
     if (this.server) this.server.close();
+
+    for (const { req } of this.fetches.values()) {
+      if (req) {
+        req.removeAllListeners('error');
+        req.on('error', () => {});
+        req.abort();
+
+        const { res } = req;
+        if (res) {
+          res.removeAllListeners('error');
+          res.on('error', () => {});
+          res.destroy();
+        }
+      }
+    }
+    this.fetches.clear();
   }
 }
 
