@@ -1,26 +1,21 @@
 {
   "name": "tera-proxy-sls",
-  "version": "0.1.0",
-  "author": "meishu",
+  "version": "0.2.0",
   "description": "Adds servers to the EME TERA server list.",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/meishuu/tera-proxy-sls.git"
-  },
-  "main": "index.js",
+  "homepage": "https://github.com/meishuu/tera-proxy-sls#readme",
+  "bugs": "https://github.com/meishuu/tera-proxy-sls/issues",
   "license": "ISC",
-  "engines": {
-    "node": ">=6.0.0"
-  },
+  "author": "meishu",
+  "main": "index.js",
+  "repository": "meishuu/tera-proxy-sls",
   "dependencies": {
     "http-proxy": "^1.15.1",
     "xmldom": "^0.1.22"
   },
   "optionalDependencies": {
-    "baldera-logger": "meishuu/baldera-logger"
+    "baldera-logger": "^0.1.0"
   },
-  "bugs": {
-    "url": "https://github.com/meishuu/tera-proxy-sls/issues"
-  },
-  "homepage": "https://github.com/meishuu/tera-proxy-sls#readme"
+  "engines": {
+    "node": ">=6.0.0"
+  }
 }
