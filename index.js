@@ -312,7 +312,7 @@ class SlsProxy {
       this.proxy = proxied;
       this.server = server;
 
-      server.listen(this.port, hostname, callback);
+      server.listen(this.port, hostname, callback).on('error', callback);
     });
   }
 
